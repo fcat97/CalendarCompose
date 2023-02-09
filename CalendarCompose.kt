@@ -1,32 +1,11 @@
-/*MIT License
+package media.uqab.coreAndroid.presentation.calendarCompose
 
-Copyright (c) [2023] [github/fCat97]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.*/
-
-package media.uqab.coreAndroid.presentation.components
-
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -52,6 +31,7 @@ fun CalendarCompose(
     selectedDate: Date = Date(),
     onDateChange: (y: Int, m: Int, d: Int) -> Unit = { _, _, _ -> }
 ) {
+
     var showingMonth by remember {
         mutableStateOf(Calendar.getInstance()[Calendar.MONTH] + 1)
     }
@@ -63,6 +43,21 @@ fun CalendarCompose(
     }
     val showingDates by remember(showingMonth, showingYear) {
         mutableStateOf(getMonthDates(showingMonth, showingYear))
+    }
+    val showSelectedDateText by remember(selectedDate, showingMonth) {
+        derivedStateOf {
+            Calendar.getInstance().apply {
+                time = selectedDate
+            }.let {
+                // true if showing month and year is different from selected date's month and year
+                showingMonth != it[Calendar.MONTH] + 1 || showingYear != it[Calendar.YEAR]
+            }
+        }
+    }
+    val selectedDateText by remember(selectedDate) {
+        derivedStateOf {
+            SimpleDateFormat("dd MMMM, yyyy", Locale.ENGLISH).format(selectedDate)
+        }
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -89,7 +84,30 @@ fun CalendarCompose(
                 )
             }
 
-            Text(text = currentMonthYearText)
+            Column(
+                modifier = Modifier
+                    .clip(shape = RoundedCornerShape(25))
+                    .clickable {
+                    // take to selected date's month
+                    Calendar.getInstance().apply {
+                        time = selectedDate
+                    }.let {
+                        showingMonth = it[Calendar.MONTH] + 1
+                        showingYear = it[Calendar.YEAR]
+                    }
+                },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(text = currentMonthYearText)
+
+                AnimatedVisibility(visible = showSelectedDateText) {
+                    Text(
+                        text = selectedDateText,
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.secondary
+                    )
+                }
+            }
 
             Surface(
                 shape = CircleShape,
@@ -109,7 +127,9 @@ fun CalendarCompose(
         }
 
         // dates
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
@@ -124,6 +144,23 @@ fun CalendarCompose(
                 val weekDates = showingDates.subList(st, st + 7)
 
                 if (weekDates.any { it != 0 }) {
+                    /*LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        items(items = weekDates) { d ->
+                            ItemDate(
+                                text = if (d == 0) "" else d.toString(),
+                                textColor = if (d == todayDate && showingMonth == thisMonth && showingYear == thisYear) {
+                                    MaterialTheme.colors.primary
+                                } else Color.Unspecified,
+                                isSelected = selectedDate.isSelected(d, showingMonth, showingYear),
+                                onClick = {
+                                    if (d != 0) onDateChange(showingYear, showingMonth, d)
+                                },
+                            )
+                        }
+                    }*/
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
@@ -136,7 +173,7 @@ fun CalendarCompose(
                                 } else Color.Unspecified,
                                 isSelected = selectedDate.isSelected(d, showingMonth, showingYear),
                                 onClick = {
-                                    onDateChange(showingYear, showingMonth, d)
+                                    if (d != 0) onDateChange(showingYear, showingMonth, d)
                                 },
                             )
                         }
@@ -146,68 +183,3 @@ fun CalendarCompose(
         }
     }
 }
-
-@Composable
-private fun ItemDate(
-    text: String,
-    textColor: Color = Color.Unspecified,
-    isSelected: Boolean = false,
-    onClick: (d: String) -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .requiredSize(32.dp)
-            .background(
-                color = if (isSelected) MaterialTheme.colors.secondary else Color.Transparent,
-                shape = CircleShape
-            )
-            .clip(shape = CircleShape)
-            .clickable { onClick(text) },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = text, color = if (isSelected) MaterialTheme.colors.onPrimary else textColor)
-    }
-
-}
-
-private fun Date.isSelected(date: Int, showingMonth: Int, showingYear: Int): Boolean {
-    val c = Calendar.getInstance().apply { time = this@isSelected }
-    return c[Calendar.DAY_OF_MONTH] == date && c[Calendar.MONTH] == showingMonth - 1 && c[Calendar.YEAR] == showingYear
-}
-private fun getMonthDates(month: Int, year: Int): List<Int> {
-    val c = Calendar.getInstance().apply {
-        this[Calendar.DAY_OF_MONTH] = 1
-        this[Calendar.MONTH] = month - 1
-        this[Calendar.YEAR] = year
-    }
-
-    val starting = c[Calendar.DAY_OF_WEEK] - 1
-
-    val days = mutableListOf<Int>()
-    days += (-1 * starting until 0).map { 0 }
-    days += (1..c.getActualMaximum(Calendar.DAY_OF_MONTH))
-    days += (days.size..42).map { 0 }
-
-    return days
-}
-private fun getWeekDayText(dayOfWeek: Int): Char = when(dayOfWeek) {
-    1 -> 'S'
-    2 -> 'M'
-    3 -> 'T'
-    4 -> 'W'
-    5 -> 'T'
-    6 -> 'F'
-    else -> 'S'
-}
-
-private val monthFormat = SimpleDateFormat("MMMM", Locale.ENGLISH)
-private fun getMonthName(m: Int, y: Int) = Calendar.getInstance().apply {
-    set(y, m - 1, 1)
-}.let {
-    monthFormat.format(it.time)
-}
-
-private val today = Calendar.getInstance()
-private val todayDate get() = today[Calendar.DAY_OF_MONTH]
-private val thisMonth get() = today[Calendar.MONTH] + 1
-private val thisYear get() = today[Calendar.YEAR]
